@@ -100,7 +100,7 @@
   .note{font-size:11px;color:var(--sub);margin-top:6px}
   a{color:var(--accent)}
   .uploader{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
-  .uploader>summary{padding:12px 16px;cursor:pointer;font-size:14px;font-weight:600;color:var(--accent)}
+  .up-title{padding:12px 16px 4px;font-size:14px;font-weight:600;color:var(--accent)}
   .up-body{padding:4px 16px 16px}
   .up-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
   .up-row label{font-size:12.5px;color:var(--sub);font-weight:600}
@@ -156,8 +156,8 @@
     <div class="ac" id="ac"></div>
   </div>
 
-  <details class="uploader" id="uploader">
-    <summary>＋ 파일 추가 (드래그 업로드)</summary>
+  <div class="uploader" id="uploader">
+    <div class="up-title">＋ 파일 추가 (드래그 업로드)</div>
     <div class="up-body">
       <div class="up-row">
         <label>GitHub 토큰</label>
@@ -198,7 +198,7 @@
 
       <div class="up-log" id="upLog"></div>
     </div>
-  </details>
+  </div>
 
   <div class="status" id="status"></div>
   <div class="result" id="result">
