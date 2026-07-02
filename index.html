@@ -58,6 +58,23 @@
   .kv .v{color:var(--txt)}
   .kv .v.hl{color:var(--warn);font-weight:700}
   .kv .v.crit{color:var(--bad);font-weight:700}
+  .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px}
+  .copybtn{flex:none;padding:7px 13px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card2);color:var(--accent);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .copybtn:hover{border-color:var(--accent)}
+  .desc{color:var(--txt);font-size:13.5px;margin:6px 0 8px;line-height:1.5}
+  .txtlines{background:var(--card2);border:1px solid var(--line);border-radius:10px;
+    padding:6px 14px;margin-bottom:4px}
+  .tline{display:flex;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13.5px}
+  .tline:last-child{border-bottom:none}
+  .tl-k{color:var(--sub);min-width:150px;max-width:150px;font-weight:600}
+  .tl-b{color:var(--sub);min-width:12px}
+  .tl-v{color:var(--txt);flex:1;word-break:break-word}
+  .tl-v.hl{color:var(--warn);font-weight:700}
+  .tl-v.crit{color:var(--bad);font-weight:700}
+  .grp{margin-bottom:10px}
+  .grp-t{font-size:13.5px;font-weight:700;color:var(--txt);margin:2px 0 4px}
+  .grp-t.hl{color:var(--warn)} .grp-t.crit{color:var(--bad)}
   .sec-title{font-size:14px;font-weight:700;color:var(--accent);margin:20px 0 8px;
     text-transform:uppercase;letter-spacing:.5px}
   .iis .sec-title{color:var(--iis)}
@@ -79,6 +96,28 @@
   .cfg input{margin-top:8px;width:100%}
   .note{font-size:11px;color:var(--sub);margin-top:6px}
   a{color:var(--accent)}
+  .uploader{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
+  .uploader>summary{padding:12px 16px;cursor:pointer;font-size:14px;font-weight:600;color:var(--accent)}
+  .up-body{padding:4px 16px 16px}
+  .up-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .up-row label{font-size:12.5px;color:var(--sub);font-weight:600}
+  .up-opt{font-weight:400;opacity:.7}
+  .up-row select,.up-row input{padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--card2);color:var(--txt);font-size:13px;outline:none}
+  .up-row input[type=text]{flex:1;min-width:140px}
+  #upToken{flex:1;min-width:180px}
+  .up-savebtn{padding:8px 14px;border-radius:8px;border:none;background:var(--accent2);
+    color:#fff;font-weight:600;font-size:12.5px;cursor:pointer}
+  .up-note{font-size:11px;color:var(--sub);margin:2px 0 12px;line-height:1.5}
+  .dropzone{border:2px dashed var(--line);border-radius:12px;padding:26px 16px;text-align:center;
+    cursor:pointer;transition:.15s;background:var(--card2)}
+  .dropzone.drag{border-color:var(--accent);background:#16233a}
+  .dz-main{font-size:13.5px;color:var(--txt);font-weight:600}
+  .dz-sub{font-size:11.5px;color:var(--sub);margin-top:5px}
+  .up-log{margin-top:10px;font-size:12.5px}
+  .up-log .li{padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:8px;align-items:center}
+  .up-log .li:last-child{border-bottom:none}
+  .up-log .ok{color:var(--good)} .up-log .err{color:var(--bad)} .up-log .wait{color:var(--sub)}
 </style>
 </head>
 <body>
@@ -106,6 +145,31 @@
     </div>
     <div class="ac" id="ac"></div>
   </div>
+
+  <details class="uploader" id="uploader">
+    <summary>＋ 파일 추가 (드래그 업로드)</summary>
+    <div class="up-body">
+      <div class="up-row">
+        <label>분류</label>
+        <select id="upCat"><option value="SPEC">SPEC (제품 사양)</option><option value="IIS">IIS (검토 기준)</option></select>
+        <label>하위폴더 <span class="up-opt">(선택)</span></label>
+        <input type="text" id="upSub" placeholder="예: M240UAN02 (없으면 비움)">
+      </div>
+      <div class="up-row">
+        <label>GitHub 토큰</label>
+        <input type="password" id="upToken" placeholder="파일 저장 권한 토큰 (Contents: write)">
+        <button class="up-savebtn" id="upSaveTok">저장</button>
+      </div>
+      <div class="up-note">토큰은 이 브라우저에만 저장됩니다. GitHub → Settings → Developer settings → Fine-grained tokens에서
+        이 저장소의 <b>Contents: Read and write</b> 권한 토큰을 발급하세요.</div>
+      <div class="dropzone" id="dropzone">
+        <div class="dz-main">PDF 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
+        <div class="dz-sub">여러 개 동시 업로드 가능 · 업로드 후 목록에 자동 반영</div>
+        <input type="file" id="upFiles" accept="application/pdf,.pdf" multiple hidden>
+      </div>
+      <div class="up-log" id="upLog"></div>
+    </div>
+  </details>
 
   <div class="status" id="status"></div>
   <div class="result" id="result">
@@ -342,22 +406,82 @@ function summarizeSpec(model, pages){
   return {kv, desc};
 }
 
-/* ---------- IIS 요약 ---------- */
-const IIS_FIELDS=[
-  ["Line / Block 불량", /Line\s*\/?\s*Block/i, "crit"],
-  ["휘점 (Bright dot)", /Bright\s*dots?/i, "crit"],
-  ["암점 (Dark dot)", /Dark\s*dots?/i, "hl"],
-  ["총 점결함 (Total)", /Total\s*dots?/i, "hl"],
-  ["점간 거리 (Distance)", /Distance\s*between/i, ""],
-  ["Mura / 불균일", /non-?uniformity|Mura|ND\s*Filter|ND\s*filter/i, ""],
+/* ---------- IIS 요약 (AUO 표 / PID 섹션 두 형식 모두 지원) ---------- */
+const IIS_TOPICS=[
+  ["Line 불량 (Line Defect)", /Line\s*Defect|Line\s*\/?\s*Block/i, "crit"],
+  ["휘점 (Bright Dot)",       /Bright\s*Dots?/i, "crit"],
+  ["암점 (Dark Dot)",         /Dark\s*Dots?/i, "hl"],
+  ["총 점결함 (Total Dot)",    /Total\s*(?:amount|Dots?)/i, "hl"],
+  ["Mura / 불균일",           /\bMura\b|non-?uniformity/i, ""],
 ];
+const IIS_MARK=/≦|≧|≤|≥|Max\.?|allow|Not allow|be seen|\bNA\b|pair|filter|limit sample|noticeable|Ignored/i;
+const IIS_XREF=/accordance|classification|Severity/i;
+const IIS_SKIP=/is defined as|appears (?:bright|dark)|not counted|specified below|every dot|means a full|larger than/i;
+function iisClean(v){ return v.replace(/＜/g,"<").replace(/＞/g,">").replace(/＝/g,"=").replace(/^\d+\s+/,"").replace(/^[\s\-:.]+/,"").replace(/\s+/g," ").trim(); }
+function iisIsHeader(line){ return IIS_TOPICS.some(([,re])=>re.test(line)&&!IIS_XREF.test(line)); }
+function iisBoundary(line, curRe){
+  for(const [,re] of IIS_TOPICS){ if(re!==curRe && re.test(line) && !IIS_XREF.test(line)) return true; }
+  return /^\s*[789]\s*[.\-]|Precaution|Inspection judgment|Sampling\s*level/i.test(line);
+}
+function iisValid(l,used,i){
+  return !used.has(i) && !IIS_XREF.test(l) && !IIS_SKIP.test(l) && IIS_MARK.test(l)
+    && l.length>3 && !/^(Inspection Item|Criteria)\b/i.test(l);
+}
 function summarizeIis(model, pages){
   const flat=[].concat(...pages);
-  const kv=[];
-  for(const [label,re,cls] of IIS_FIELDS){
-    const line = flat.find(l=>re.test(l) && l.length<170);
-    if(line){ let v=line.replace(re,"").replace(/^[\s\-:.]*/,"").trim(); if(!v||v.length<2)v=line; kv.push([label, v.slice(0,140), cls]); }
+  const groups=[]; const used=new Set();
+  for(const [title,re,cls] of IIS_TOPICS){
+    const idx=flat.findIndex(l=>re.test(l)&&!IIS_XREF.test(l)&&!IIS_SKIP.test(l));
+    if(idx<0) continue;
+    const col=[]; const idxs=[];
+    const rem=iisClean(flat[idx].replace(re,""));
+    if(IIS_MARK.test(rem)){
+      // 같은 줄에 기준값 존재 (AUO 인라인) → 그 줄만 사용
+      col.push(rem); idxs.push(idx);
+    } else {
+      // 아래쪽 줄 수집 (PID 섹션형)
+      for(let j=idx+1,cap=0; j<flat.length && cap<12; j++,cap++){
+        const l=flat[j]; if(iisBoundary(l,re)) break;
+        if(iisValid(l,used,j)){ const c=iisClean(l); if(c&&!col.includes(c)){col.push(c); idxs.push(j);} }
+      }
+      // 없으면 바로 윗줄 확인 (AUO에서 값이 라벨 위에 오는 경우)
+      if(!col.length && idx>0 && iisValid(flat[idx-1],used,idx-1) && !iisIsHeader(flat[idx-1])){
+        col.push(iisClean(flat[idx-1])); idxs.push(idx-1);
+      }
+    }
+    if(col.length){ idxs.forEach(i=>used.add(i)); groups.push({title, cls, lines:col.slice(0,6)}); }
   }
+  const findGroup=t=>groups.find(g=>g.title===t);
+  // --- 인접/연속 점결함 (AUO): 휘점/암점 그룹에 추가 ---
+  for(const l of flat){
+    const m=l.match(/continuous\s+(bright|dark)\s+dots?/i);
+    if(m && IIS_MARK.test(l) && !IIS_XREF.test(l)){
+      const g=findGroup(m[1].toLowerCase()==="bright"?"휘점 (Bright Dot)":"암점 (Dark Dot)");
+      const c=iisClean(l); if(g && !g.lines.includes(c)) g.lines.push(c);
+    }
+  }
+  // --- 점 간 거리 (Distance) ---
+  const dist=[];
+  for(let i=0;i<flat.length;i++){
+    if(/distance\s+between/i.test(flat[i]) && !IIS_XREF.test(flat[i])){
+      let v=flat[i];
+      if(!/≧|≦|≤|≥|\bmm\b|\bNA\b/i.test(v)){
+        const nb=(flat[i-1]&&/mm|≧|≦/.test(flat[i-1]))?flat[i-1]:((flat[i+1]&&/mm|≧|≦/.test(flat[i+1]))?flat[i+1]:"");
+        if(nb) v=v+" "+nb;
+      }
+      const c=iisClean(v); if(c && !dist.includes(c)) dist.push(c);
+    }
+  }
+  if(dist.length) groups.push({title:"점 간 거리 (Distance)", cls:"", lines:dist.slice(0,6)});
+  // --- 이물 / 외관 (Foreign material: 원 지름 D, 선 폭 W, 길이 L, 개수 N) ---
+  const FOREIGN=/[DWL]\s*[<≦＜]|[<≦＜]\s*[DWL]\b|\bN\s*[≦=]|Disregarded|Linear\s*Scratch|Bubble\s*\/?\s*Dent/;
+  const foreign=[], fseen=new Set();
+  for(const l of flat){
+    if(FOREIGN.test(l) && /\d/.test(l) && l.length<90 && !IIS_XREF.test(l) && !/W\s*\(mm\)\s*:\s*Width/i.test(l)){
+      const c=iisClean(l), k=c.replace(/\s+/g,""); if(c && !fseen.has(k)){ fseen.add(k); foreign.push(c); }
+    }
+  }
+  if(foreign.length) groups.push({title:"이물 / 외관 (Foreign material)", cls:"", lines:foreign.slice(0,7)});
   // AQL / 샘플링
   const aqlMaj=flat.find(l=>/Major/i.test(l)&&/AQL|1\.0/i.test(l));
   const aqlMin=flat.find(l=>/Minor/i.test(l)&&/AQL|2\.5/i.test(l));
@@ -366,9 +490,9 @@ function summarizeIis(model, pages){
   if(samp) meta.push(["샘플링", samp.slice(0,120)]);
   if(aqlMaj) meta.push(["AQL Major", aqlMaj.replace(/.*Major/i,"Major").slice(0,80)]);
   if(aqlMin) meta.push(["AQL Minor", aqlMin.replace(/.*Minor/i,"Minor").slice(0,80)]);
-  // 외관 핵심
-  const app=flat.filter(l=>/scratch|bubble|polarizer|Glass broken|particle/i.test(l)&&l.length<160).slice(0,6);
-  return {kv, meta, app};
+  // 외관 핵심(발췌) — 위 이물 그룹에서 못 잡은 항목 보조
+  const app=flat.filter(l=>/polarizer can|end of polarizer|Glass broken|1\.7\s*mm/i.test(l)&&l.length<160&&!IIS_XREF.test(l)).slice(0,4);
+  return {groups, meta, app};
 }
 
 /* ---------- 렌더 ---------- */
@@ -382,36 +506,118 @@ async function summarize(it){
   const catClass = curCat==="iis"?"iis":"";
   const gradeBadge = it.grade?`<span class="badge b-grade">${it.grade} grade</span>`:"";
   const seriesBadge = it.series?`<span class="badge b-series">${it.series} series</span>`:"";
-  let inner="";
+  let inner="";                 // 화면용 HTML
+  const plain=[];               // 복사용 텍스트
+  const head = `[${curCat.toUpperCase()}] ${it.modelFull}${it.grade?" "+it.grade+" grade":""}${it.series?" / "+it.series+" series":""}`;
+  plain.push(head, it.filename+(it.date?" ("+it.date+")":""), "");
+
   if(curCat==="spec"){
     const s=summarizeSpec(it, ext.pages);
-    inner += s.desc?`<div class="filemeta" style="color:var(--txt);font-size:13.5px;margin-bottom:14px">${s.desc}</div>`:"";
-    inner += `<div class="sec-title">핵심 사양 (Display Characteristics)</div>`;
-    inner += s.kv.length ? kvTable(s.kv) : `<div class="empty">표준 사양표를 자동 인식하지 못했습니다. 아래 원문을 확인하세요.</div>`;
+    if(s.desc){ inner += `<div class="desc">${esc(s.desc)}</div>`; plain.push("· 개요: "+s.desc, ""); }
+    if(s.kv.length){ inner += renderLines("핵심 사양 (Display Characteristics)", s.kv);
+      plain.push("[핵심 사양]", ...s.kv.map(r=>` - ${r[0]}: ${r[1]}`), ""); }
+    else inner += `<div class="empty">표준 사양표를 자동 인식하지 못했습니다. 아래 원문을 확인하세요.</div>`;
   } else {
     const s=summarizeIis(it, ext.pages);
-    inner += `<div class="sec-title">전기적 검사 기준</div>`;
-    inner += s.kv.length ? kvTable(s.kv) : `<div class="empty">검사 기준표를 자동 인식하지 못했습니다. 아래 원문을 확인하세요.</div>`;
-    if(s.meta.length){ inner += `<div class="sec-title">샘플링 / AQL</div>`+kvTable(s.meta); }
-    if(s.app.length){ inner += `<div class="sec-title">외관 검사 (발췌)</div><div class="kv">`+
-      s.app.map(l=>`<div class="k" style="grid-column:1/2">·</div><div class="v">${esc(l)}</div>`).join("")+`</div>`; }
+    if(s.groups.length){
+      inner += `<div class="sec-title">전기적 검사 기준</div>`;
+      plain.push("[전기적 검사 기준]");
+      for(const g of s.groups){
+        inner += renderGroup(g);
+        plain.push(" ▪ "+g.title, ...g.lines.map(l=>"    - "+l));
+      }
+      plain.push("");
+    } else inner += `<div class="empty">검사 기준을 자동 인식하지 못했습니다. 아래 원문을 확인하세요.</div>`;
+    if(s.meta.length){ inner += renderLines("샘플링 / AQL", s.meta);
+      plain.push("[샘플링 / AQL]", ...s.meta.map(r=>` - ${r[0]}: ${r[1]}`), ""); }
+    if(s.app.length){ inner += renderList("외관 검사 (발췌)", s.app);
+      plain.push("[외관 검사 (발췌)]", ...s.app.map(l=>" - "+l), ""); }
   }
   const rawAll = ext.pages.map((p,i)=>`── page ${i+1} ──\n`+p.join("\n")).join("\n\n");
+  const plainText = plain.join("\n").trim();
   $("result").innerHTML = `<div class="card ${catClass}">
-    <h2>${it.modelFull}${gradeBadge}${seriesBadge}</h2>
-    <div class="filemeta">${curCat.toUpperCase()} · ${esc(it.filename)}${it.date?" · "+it.date:""}</div>
+    <div class="cardhead">
+      <div><h2>${it.modelFull}${gradeBadge}${seriesBadge}</h2>
+        <div class="filemeta">${curCat.toUpperCase()} · ${esc(it.filename)}${it.date?" · "+it.date:""}</div></div>
+      <button class="copybtn" id="copyBtn">텍스트 복사</button>
+    </div>
     ${inner}
     <a class="openpdf" href="${ext.url}" target="_blank" rel="noopener">원본 PDF 열기 ↗</a>
     <details><summary>추출된 원문 텍스트 보기</summary><div class="rawtext">${esc(rawAll)}</div></details>
   </div>`;
+  const cb=$("copyBtn");
+  if(cb) cb.onclick=()=>{ navigator.clipboard.writeText(plainText).then(()=>{
+    cb.textContent="복사됨 ✓"; setTimeout(()=>cb.textContent="텍스트 복사",1500); }); };
 }
-function kvTable(rows){
-  return `<div class="kv">`+rows.map(r=>{
-    const cls=r[2]?` ${r[2]}`:"";
-    return `<div class="k">${esc(r[0])}</div><div class="v${cls}">${esc(r[1])}</div>`;
+// label:value 텍스트 라인 렌더 (crit/hl 강조)
+function renderLines(title, rows){
+  return `<div class="sec-title">${esc(title)}</div><div class="txtlines">`+rows.map(r=>{
+    const cls = r[2]==="crit"?"crit": r[2]==="hl"?"hl":"";
+    return `<div class="tline"><span class="tl-k">${esc(r[0])}</span><span class="tl-v ${cls}">${esc(r[1])}</span></div>`;
   }).join("")+`</div>`;
 }
+// IIS 항목 그룹 렌더 (제목 + 기준 여러 줄, crit/hl 강조)
+function renderGroup(g){
+  const cls = g.cls==="crit"?"crit": g.cls==="hl"?"hl":"";
+  return `<div class="grp"><div class="grp-t ${cls}">${esc(g.title)}</div><div class="txtlines">`+
+    g.lines.map(l=>`<div class="tline"><span class="tl-b">·</span><span class="tl-v ${cls}">${esc(l)}</span></div>`).join("")+
+    `</div></div>`;
+}
+// 단순 텍스트 목록 렌더
+function renderList(title, lines){
+  return `<div class="sec-title">${esc(title)}</div><div class="txtlines">`+lines.map(l=>
+    `<div class="tline"><span class="tl-b">·</span><span class="tl-v">${esc(l)}</span></div>`).join("")+`</div>`;
+}
 function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+/* ---------- 파일 업로드 (GitHub Contents API, 재배포 불필요) ---------- */
+function getTok(){ const v=($("upToken")?.value||"").trim(); if(v) return v; try{return localStorage.getItem("gh_token")||"";}catch(e){return "";} }
+function fileToB64(file){ return new Promise((res,rej)=>{ const fr=new FileReader();
+  fr.onload=()=>res(String(fr.result).split(",")[1]); fr.onerror=rej; fr.readAsDataURL(file); }); }
+function upLog(msg,cls){ const el=document.createElement("div"); el.className="li "+(cls||"wait");
+  el.innerHTML=`<span>${cls==="ok"?"✓":cls==="err"?"✕":"…"}</span><span>${esc(msg)}</span>`;
+  $("upLog").prepend(el); return el; }
+function upLogSet(el,msg,cls){ el.className="li "+(cls||"");
+  el.innerHTML=`<span>${cls==="ok"?"✓":cls==="err"?"✕":"…"}</span><span>${esc(msg)}</span>`; }
+async function ghPutFile(path, b64, msg){
+  const seg=path.split("/").map(encodeURIComponent).join("/");
+  const api=`https://api.github.com/repos/${REPO.owner}/${REPO.repo}/contents/${seg}`;
+  const hdr={ "Authorization":"Bearer "+getTok(), "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28" };
+  let sha;
+  try{ const g=await fetch(api+`?ref=${REPO.branch}`,{headers:hdr}); if(g.status===200){ sha=(await g.json()).sha; } }catch(e){}
+  const body={ message:msg, content:b64, branch:REPO.branch }; if(sha) body.sha=sha;
+  const r=await fetch(api,{method:"PUT",headers:hdr,body:JSON.stringify(body)});
+  if(!r.ok){ let m="HTTP "+r.status; try{ m=(await r.json()).message||m; }catch(e){} throw new Error(m); }
+}
+async function uploadFiles(files){
+  if(!REPO.owner||!REPO.repo){ upLog("먼저 저장소를 설정하세요.","err"); return; }
+  if(!getTok()){ upLog("먼저 GitHub 토큰을 입력하고 [저장]을 누르세요.","err"); return; }
+  const cat=$("upCat").value;
+  const sub=$("upSub").value.trim().replace(/^\/+|\/+$/g,"");
+  const list=[...files].filter(f=>/\.pdf$/i.test(f.name));
+  if(!list.length){ upLog("PDF 파일만 업로드할 수 있습니다.","err"); return; }
+  let ok=0;
+  for(const f of list){
+    const path=cat+"/"+(sub?sub+"/":"")+f.name;
+    const el=upLog(`업로드 중… ${path}`,"wait");
+    try{ const b64=await fileToB64(f); await ghPutFile(path,b64,`Add ${path} via web uploader`); upLogSet(el,`완료: ${path}`,"ok"); ok++; }
+    catch(e){ upLogSet(el,`실패: ${f.name} — ${e.message}`,"err"); }
+  }
+  if(ok){ upLog(`${ok}개 업로드 완료 · 목록을 새로고침합니다.`,"ok"); await loadIndex(); }
+}
+(function initUploader(){
+  const up=$("uploader"); if(!up) return;
+  try{ const t=localStorage.getItem("gh_token"); if(t) $("upToken").value=t; }catch(e){}
+  $("upSaveTok").onclick=()=>{ try{localStorage.setItem("gh_token",$("upToken").value.trim());}catch(e){}
+    $("upSaveTok").textContent="저장됨 ✓"; setTimeout(()=>$("upSaveTok").textContent="저장",1500); };
+  up.addEventListener("toggle",()=>{ if(up.open) $("upCat").value = curCat==="iis"?"IIS":"SPEC"; });
+  const dz=$("dropzone"), fi=$("upFiles");
+  dz.onclick=()=>fi.click();
+  fi.onchange=()=>{ if(fi.files.length){ uploadFiles(fi.files); fi.value=""; } };
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+  dz.addEventListener("drop",e=>{ const f=e.dataTransfer&&e.dataTransfer.files; if(f&&f.length) uploadFiles(f); });
+})();
 
 /* ---------- 시작 ---------- */
 loadIndex();
