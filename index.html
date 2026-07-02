@@ -45,6 +45,9 @@
     font-weight:700;margin-left:6px;vertical-align:middle}
   .b-grade{background:#3a2e15;color:var(--warn)}
   .b-series{background:#153a2e;color:var(--iis)}
+  .counts{font-size:12.5px;color:var(--sub);margin:-4px 2px 12px;display:flex;gap:14px;flex-wrap:wrap}
+  .counts b{color:var(--txt);font-weight:700}
+  .counts .c-spec b{color:var(--spec)} .counts .c-iis b{color:var(--iis)}
   .status{color:var(--sub);font-size:13px;padding:8px 2px;min-height:20px}
   .result{margin-top:10px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
@@ -138,6 +141,8 @@
     <div class="tab" data-cat="iis">IIS (검토 기준)</div>
   </div>
 
+  <div class="counts" id="counts">파일 목록 불러오는 중…</div>
+
   <div class="searchbox">
     <div class="searchrow">
       <input type="text" id="q" placeholder="모델명 입력 (예: P215HAN, M270QAN06, G215)" autocomplete="off">
@@ -151,7 +156,7 @@
     <div class="up-body">
       <div class="up-row">
         <label>분류</label>
-        <select id="upCat"><option value="SPEC">SPEC (제품 사양)</option><option value="IIS">IIS (검토 기준)</option></select>
+        <select id="upCat"><option value="SPEC">SPEC (제품 사양)</option><option value="IIS">IIS (검토 기준)</option><option value="ROOT">HTML/기타 (저장소 루트 · 앱 업데이트)</option></select>
         <label>하위폴더 <span class="up-opt">(선택)</span></label>
         <input type="text" id="upSub" placeholder="예: M240UAN02 (없으면 비움)">
       </div>
@@ -165,7 +170,7 @@
       <div class="dropzone" id="dropzone">
         <div class="dz-main">PDF 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
         <div class="dz-sub">여러 개 동시 업로드 가능 · 업로드 후 목록에 자동 반영</div>
-        <input type="file" id="upFiles" accept="application/pdf,.pdf" multiple hidden>
+        <input type="file" id="upFiles" accept=".pdf,.html,.htm,.json,.css,.js,.md,application/pdf,text/html" multiple hidden>
       </div>
       <div class="up-log" id="upLog"></div>
     </div>
@@ -262,9 +267,15 @@ async function loadIndex(){
   }
   // 최신 우선 정렬
   for(const c of ["spec","iis"]) INDEX[c].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  updateCounts();
   setStatus(`불러오기 완료 · SPEC ${INDEX.spec.length}건 / IIS ${INDEX.iis.length}건`);
   setTimeout(()=>{ if(document.getElementById("result").querySelector(".empty")) setStatus(""); }, 2500);
   return true;
+}
+function updateCounts(){
+  const el=document.getElementById("counts"); if(!el) return;
+  el.innerHTML = `<span class="c-spec">SPEC <b>${INDEX.spec.length}</b>건</span>`
+    + `<span class="c-iis">IIS <b>${INDEX.iis.length}</b>건</span>`;
 }
 
 /* ---------- UI ---------- */
@@ -309,7 +320,7 @@ function choose(i){
   chosen=acItems[i]; $("q").value=chosen.modelFull+(chosen.grade?" "+chosen.grade:"")+(chosen.series?" "+chosen.series:"");
   hideAC();
 }
-$("q").addEventListener("input",()=>{ chosen=null; renderAC(); });
+$("q").addEventListener("input",()=>{ const el=$("q"); el.value=el.value.toUpperCase(); chosen=null; renderAC(); });
 $("q").addEventListener("focus",renderAC);
 $("q").addEventListener("keydown",e=>{
   if(!$("ac").classList.contains("show")){ if(e.key==="Enter") run(); return; }
@@ -593,12 +604,13 @@ async function uploadFiles(files){
   if(!REPO.owner||!REPO.repo){ upLog("먼저 저장소를 설정하세요.","err"); return; }
   if(!getTok()){ upLog("먼저 GitHub 토큰을 입력하고 [저장]을 누르세요.","err"); return; }
   const cat=$("upCat").value;
+  const isRoot=cat==="ROOT";
   const sub=$("upSub").value.trim().replace(/^\/+|\/+$/g,"");
-  const list=[...files].filter(f=>/\.pdf$/i.test(f.name));
-  if(!list.length){ upLog("PDF 파일만 업로드할 수 있습니다.","err"); return; }
+  const list=[...files].filter(f=> isRoot ? /\.(html?|json|css|js|md)$/i.test(f.name) : /\.pdf$/i.test(f.name));
+  if(!list.length){ upLog(isRoot?"HTML/기타 파일(.html .json .css .js .md)을 올려주세요.":"PDF 파일만 업로드할 수 있습니다.","err"); return; }
   let ok=0;
   for(const f of list){
-    const path=cat+"/"+(sub?sub+"/":"")+f.name;
+    const path=(isRoot?"":cat+"/")+(sub?sub+"/":"")+f.name;
     const el=upLog(`업로드 중… ${path}`,"wait");
     try{ const b64=await fileToB64(f); await ghPutFile(path,b64,`Add ${path} via web uploader`); upLogSet(el,`완료: ${path}`,"ok"); ok++; }
     catch(e){ upLogSet(el,`실패: ${f.name} — ${e.message}`,"err"); }
