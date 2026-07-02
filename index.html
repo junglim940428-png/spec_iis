@@ -112,6 +112,9 @@
   .up-savebtn{padding:8px 14px;border-radius:8px;border:none;background:var(--accent2);
     color:#fff;font-weight:600;font-size:12.5px;cursor:pointer}
   .up-note{font-size:11px;color:var(--sub);margin:2px 0 12px;line-height:1.5}
+  .up-sec{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:rgba(255,255,255,.02)}
+  .up-sec-t{font-size:13px;font-weight:700;margin-bottom:10px}
+  .up-sec-t.c-spec{color:var(--spec)} .up-sec-t.c-iis{color:var(--iis)}
   .dropzone{border:2px dashed var(--line);border-radius:12px;padding:26px 16px;text-align:center;
     cursor:pointer;transition:.15s;background:var(--card2)}
   .dropzone.drag{border-color:var(--accent);background:#16233a}
@@ -155,23 +158,37 @@
     <summary>＋ 파일 추가 (드래그 업로드)</summary>
     <div class="up-body">
       <div class="up-row">
-        <label>분류</label>
-        <select id="upCat"><option value="SPEC">SPEC (제품 사양)</option><option value="IIS">IIS (검토 기준)</option><option value="ROOT">HTML/기타 (저장소 루트 · 앱 업데이트)</option></select>
-        <label>하위폴더 <span class="up-opt">(선택)</span></label>
-        <input type="text" id="upSub" placeholder="예: M240UAN02 (없으면 비움)">
-      </div>
-      <div class="up-row">
         <label>GitHub 토큰</label>
         <input type="password" id="upToken" placeholder="파일 저장 권한 토큰 (Contents: write)">
         <button class="up-savebtn" id="upSaveTok">저장</button>
       </div>
       <div class="up-note">토큰은 이 브라우저에만 저장됩니다. GitHub → Settings → Developer settings → Fine-grained tokens에서
-        이 저장소의 <b>Contents: Read and write</b> 권한 토큰을 발급하세요.</div>
-      <div class="dropzone" id="dropzone">
-        <div class="dz-main">PDF 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
-        <div class="dz-sub">여러 개 동시 업로드 가능 · 업로드 후 목록에 자동 반영</div>
-        <input type="file" id="upFiles" accept=".pdf,.html,.htm,.json,.css,.js,.md,application/pdf,text/html" multiple hidden>
+        이 저장소의 <b>Contents: Read and write</b> 권한 토큰을 발급하세요. (아래 두 영역 공통 사용)</div>
+
+      <div class="up-sec">
+        <div class="up-sec-t c-spec">① SPEC / IIS 파일 추가</div>
+        <div class="up-row">
+          <label>분류</label>
+          <select id="upCat"><option value="SPEC">SPEC (제품 사양)</option><option value="IIS">IIS (검토 기준)</option></select>
+          <label>하위폴더 <span class="up-opt">(선택)</span></label>
+          <input type="text" id="upSub" placeholder="예: M240UAN02 (없으면 비움)">
+        </div>
+        <div class="dropzone" id="dropzone">
+          <div class="dz-main">PDF 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
+          <div class="dz-sub">여러 개 동시 업로드 가능 · 선택한 SPEC/IIS 폴더에 저장, 목록 자동 반영</div>
+          <input type="file" id="upFiles" accept=".pdf,application/pdf" multiple hidden>
+        </div>
       </div>
+
+      <div class="up-sec">
+        <div class="up-sec-t c-iis">② 앱(HTML) 업데이트</div>
+        <div class="dropzone" id="dropzoneRoot">
+          <div class="dz-main">index.html 등 앱 파일을 끌어다 놓거나 클릭해서 선택</div>
+          <div class="dz-sub">.html .js .css .json .md · 저장소 루트의 기존 파일을 덮어써 앱을 업데이트 (새로고침 후 반영)</div>
+          <input type="file" id="upFilesRoot" accept=".html,.htm,.js,.css,.json,.md,text/html" multiple hidden>
+        </div>
+      </div>
+
       <div class="up-log" id="upLog"></div>
     </div>
   </details>
@@ -600,22 +617,31 @@ async function ghPutFile(path, b64, msg){
   const r=await fetch(api,{method:"PUT",headers:hdr,body:JSON.stringify(body)});
   if(!r.ok){ let m="HTTP "+r.status; try{ m=(await r.json()).message||m; }catch(e){} throw new Error(m); }
 }
-async function uploadFiles(files){
+// mode: "pdf" (SPEC/IIS 폴더) 또는 "root" (저장소 루트 앱파일)
+async function uploadTo(files, mode){
+  const isRoot = mode==="root";
   if(!REPO.owner||!REPO.repo){ upLog("먼저 저장소를 설정하세요.","err"); return; }
   if(!getTok()){ upLog("먼저 GitHub 토큰을 입력하고 [저장]을 누르세요.","err"); return; }
-  const cat=$("upCat").value;
-  const isRoot=cat==="ROOT";
-  const sub=$("upSub").value.trim().replace(/^\/+|\/+$/g,"");
-  const list=[...files].filter(f=> isRoot ? /\.(html?|json|css|js|md)$/i.test(f.name) : /\.pdf$/i.test(f.name));
-  if(!list.length){ upLog(isRoot?"HTML/기타 파일(.html .json .css .js .md)을 올려주세요.":"PDF 파일만 업로드할 수 있습니다.","err"); return; }
+  const list=[...files].filter(f=> isRoot ? /\.(html?|js|css|json|md)$/i.test(f.name) : /\.pdf$/i.test(f.name));
+  if(!list.length){ upLog(isRoot?"HTML/기타 파일(.html .js .css .json .md)만 올릴 수 있습니다.":"PDF 파일만 업로드할 수 있습니다.","err"); return; }
+  const base = isRoot ? "" : $("upCat").value+"/";
+  const sub  = isRoot ? "" : $("upSub").value.trim().replace(/^\/+|\/+$/g,"");
   let ok=0;
   for(const f of list){
-    const path=(isRoot?"":cat+"/")+(sub?sub+"/":"")+f.name;
+    const path=base+(sub?sub+"/":"")+f.name;
     const el=upLog(`업로드 중… ${path}`,"wait");
-    try{ const b64=await fileToB64(f); await ghPutFile(path,b64,`Add ${path} via web uploader`); upLogSet(el,`완료: ${path}`,"ok"); ok++; }
+    try{ const b64=await fileToB64(f); await ghPutFile(path,b64,`Update ${path} via web uploader`); upLogSet(el,`완료: ${path}`,"ok"); ok++; }
     catch(e){ upLogSet(el,`실패: ${f.name} — ${e.message}`,"err"); }
   }
-  if(ok){ upLog(`${ok}개 업로드 완료 · 목록을 새로고침합니다.`,"ok"); await loadIndex(); }
+  if(ok){ upLog(`${ok}개 완료 · `+(isRoot?"새로고침(F5) 후 앱에 반영됩니다.":"목록을 새로고침합니다."),"ok"); if(!isRoot) await loadIndex(); }
+}
+function wireDropzone(dzId, fiId, mode){
+  const dz=$(dzId), fi=$(fiId); if(!dz||!fi) return;
+  dz.onclick=()=>fi.click();
+  fi.onchange=()=>{ if(fi.files.length){ uploadTo(fi.files, mode); fi.value=""; } };
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+  dz.addEventListener("drop",e=>{ const f=e.dataTransfer&&e.dataTransfer.files; if(f&&f.length) uploadTo(f, mode); });
 }
 (function initUploader(){
   const up=$("uploader"); if(!up) return;
@@ -623,12 +649,8 @@ async function uploadFiles(files){
   $("upSaveTok").onclick=()=>{ try{localStorage.setItem("gh_token",$("upToken").value.trim());}catch(e){}
     $("upSaveTok").textContent="저장됨 ✓"; setTimeout(()=>$("upSaveTok").textContent="저장",1500); };
   up.addEventListener("toggle",()=>{ if(up.open) $("upCat").value = curCat==="iis"?"IIS":"SPEC"; });
-  const dz=$("dropzone"), fi=$("upFiles");
-  dz.onclick=()=>fi.click();
-  fi.onchange=()=>{ if(fi.files.length){ uploadFiles(fi.files); fi.value=""; } };
-  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
-  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
-  dz.addEventListener("drop",e=>{ const f=e.dataTransfer&&e.dataTransfer.files; if(f&&f.length) uploadFiles(f); });
+  wireDropzone("dropzone","upFiles","pdf");
+  wireDropzone("dropzoneRoot","upFilesRoot","root");
 })();
 
 /* ---------- 시작 ---------- */
