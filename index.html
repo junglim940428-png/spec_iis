@@ -115,6 +115,8 @@
   .up-sec{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:rgba(255,255,255,.02)}
   .up-sec-t{font-size:13px;font-weight:700;margin-bottom:10px}
   .up-sec-t.c-spec{color:var(--spec)} .up-sec-t.c-iis{color:var(--iis)}
+  .dz-pair{display:flex;gap:10px;flex-wrap:wrap}
+  .dz-pair .dropzone{flex:1;min-width:180px}
   .dropzone{border:2px dashed var(--line);border-radius:12px;padding:26px 16px;text-align:center;
     cursor:pointer;transition:.15s;background:var(--card2)}
   .dropzone.drag{border-color:var(--accent);background:#16233a}
@@ -166,17 +168,22 @@
         이 저장소의 <b>Contents: Read and write</b> 권한 토큰을 발급하세요. (아래 두 영역 공통 사용)</div>
 
       <div class="up-sec">
-        <div class="up-sec-t c-spec">① SPEC / IIS 파일 추가</div>
+        <div class="up-sec-t c-spec">① SPEC / IIS 파일 추가 (PDF)</div>
         <div class="up-row">
-          <label>분류</label>
-          <select id="upCat"><option value="SPEC">SPEC (제품 사양)</option><option value="IIS">IIS (검토 기준)</option></select>
           <label>하위폴더 <span class="up-opt">(선택)</span></label>
-          <input type="text" id="upSub" placeholder="예: M240UAN02 (없으면 비움)">
+          <input type="text" id="upSub" placeholder="예: M240UAN02 (없으면 비움) · SPEC·IIS 공통 적용">
         </div>
-        <div class="dropzone" id="dropzone">
-          <div class="dz-main">PDF 파일을 여기에 끌어다 놓거나 클릭해서 선택</div>
-          <div class="dz-sub">여러 개 동시 업로드 가능 · 선택한 SPEC/IIS 폴더에 저장, 목록 자동 반영</div>
-          <input type="file" id="upFiles" accept=".pdf,application/pdf" multiple hidden>
+        <div class="dz-pair">
+          <div class="dropzone" id="dropzoneSpec">
+            <div class="dz-main">SPEC PDF 추가</div>
+            <div class="dz-sub">끌어다 놓기 / 클릭 · SPEC 폴더에 저장</div>
+            <input type="file" id="upFilesSpec" accept=".pdf,application/pdf" multiple hidden>
+          </div>
+          <div class="dropzone" id="dropzoneIis">
+            <div class="dz-main">IIS PDF 추가</div>
+            <div class="dz-sub">끌어다 놓기 / 클릭 · IIS 폴더에 저장</div>
+            <input type="file" id="upFilesIis" accept=".pdf,application/pdf" multiple hidden>
+          </div>
         </div>
       </div>
 
@@ -617,14 +624,14 @@ async function ghPutFile(path, b64, msg){
   const r=await fetch(api,{method:"PUT",headers:hdr,body:JSON.stringify(body)});
   if(!r.ok){ let m="HTTP "+r.status; try{ m=(await r.json()).message||m; }catch(e){} throw new Error(m); }
 }
-// mode: "pdf" (SPEC/IIS 폴더) 또는 "root" (저장소 루트 앱파일)
+// mode: "SPEC" | "IIS" (해당 폴더) | "root" (저장소 루트 앱파일)
 async function uploadTo(files, mode){
   const isRoot = mode==="root";
   if(!REPO.owner||!REPO.repo){ upLog("먼저 저장소를 설정하세요.","err"); return; }
   if(!getTok()){ upLog("먼저 GitHub 토큰을 입력하고 [저장]을 누르세요.","err"); return; }
   const list=[...files].filter(f=> isRoot ? /\.(html?|js|css|json|md)$/i.test(f.name) : /\.pdf$/i.test(f.name));
   if(!list.length){ upLog(isRoot?"HTML/기타 파일(.html .js .css .json .md)만 올릴 수 있습니다.":"PDF 파일만 업로드할 수 있습니다.","err"); return; }
-  const base = isRoot ? "" : $("upCat").value+"/";
+  const base = isRoot ? "" : mode+"/";
   const sub  = isRoot ? "" : $("upSub").value.trim().replace(/^\/+|\/+$/g,"");
   let ok=0;
   for(const f of list){
@@ -648,8 +655,8 @@ function wireDropzone(dzId, fiId, mode){
   try{ const t=localStorage.getItem("gh_token"); if(t) $("upToken").value=t; }catch(e){}
   $("upSaveTok").onclick=()=>{ try{localStorage.setItem("gh_token",$("upToken").value.trim());}catch(e){}
     $("upSaveTok").textContent="저장됨 ✓"; setTimeout(()=>$("upSaveTok").textContent="저장",1500); };
-  up.addEventListener("toggle",()=>{ if(up.open) $("upCat").value = curCat==="iis"?"IIS":"SPEC"; });
-  wireDropzone("dropzone","upFiles","pdf");
+  wireDropzone("dropzoneSpec","upFilesSpec","SPEC");
+  wireDropzone("dropzoneIis","upFilesIis","IIS");
   wireDropzone("dropzoneRoot","upFilesRoot","root");
 })();
 
