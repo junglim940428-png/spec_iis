@@ -78,6 +78,15 @@
   .grp{margin-bottom:10px}
   .grp-t{font-size:13.5px;font-weight:700;color:var(--txt);margin:2px 0 4px}
   .grp-t.hl{color:var(--warn)} .grp-t.crit{color:var(--bad)}
+  .mnote{font-size:12.5px;color:var(--txt);margin:2px 0 10px}
+  .mhint{color:var(--sub);font-size:11px}
+  .mgrp{margin-bottom:10px}
+  .mgrp-t{font-size:13px;font-weight:700;margin-bottom:6px}
+  .mgrp-t.c-both{color:var(--warn)} .mgrp-t.c-spec{color:var(--spec)} .mgrp-t.c-iis{color:var(--iis)}
+  .mchips{display:flex;flex-wrap:wrap;gap:6px}
+  .mchip{display:inline-block;padding:4px 10px;border-radius:20px;background:var(--card2);
+    border:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--txt)}
+  .mnone{font-size:12px;color:var(--sub)}
   .sec-title{font-size:14px;font-weight:700;color:var(--accent);margin:20px 0 8px;
     text-transform:uppercase;letter-spacing:.5px}
   .iis .sec-title{color:var(--iis)}
@@ -227,6 +236,48 @@ function detectRepo(){
   return {owner, repo, branch};
 }
 let REPO = detectRepo();
+
+/* ---------- 커넥터·핀맵 비교표 로드 ---------- */
+let CONN=null;
+async function loadConn(){
+  if(!REPO.owner||!REPO.repo) return;
+  try{
+    const url=`https://raw.githubusercontent.com/${REPO.owner}/${REPO.repo}/${REPO.branch}/connectors.json`;
+    const r=await fetch(url); if(r.ok) CONN=await r.json();
+  }catch(e){ CONN=null; }
+}
+// SPEC 결과에 동일 커넥터·핀맵 모델 목록 생성
+function renderMatches(it){
+  if(!CONN) return {html:"", plain:[]};
+  const me=CONN[it.path];
+  if(!me) return {html:`<div class="sec-title spec">동일 커넥터·핀맵 모델</div><div class="empty">이 파일의 커넥터 데이터가 없어요 (connectors.json 재생성 필요).</div>`, plain:[]};
+  const lk=(me.lvds||[]).join("|"), bk=(me.bl||[]).join("|");
+  const both=[],lonly=[],bonly=[];
+  for(const k in CONN){
+    if(k===it.path) continue;
+    const v=CONN[k];
+    const lm = lk && (v.lvds||[]).join("|")===lk;
+    const bm = bk && (v.bl||[]).join("|")===bk;
+    if(lm&&bm) both.push(k); else if(lm) lonly.push(k); else if(bm) bonly.push(k);
+  }
+  const uniq=arr=>{ const s=new Set(),o=[]; for(const k of arr){ const m=parseModel(k.split("/").pop()).full; if(!s.has(m)){s.add(m);o.push(m);} } return o.sort(); };
+  const meL=(me.lvds&&me.lvds.length)?`LVDS ${me.lvds.length}핀`:"LVDS 자동추출 불가";
+  const meB=(me.bl&&me.bl.length)?`백라이트 ${me.bl.length}핀`:"백라이트 자동추출 불가";
+  const sec=(t,arr,cls)=>{ const u=uniq(arr);
+    return `<div class="mgrp"><div class="mgrp-t ${cls}">${t} (${u.length})</div>`
+      +(u.length?`<div class="mchips">`+u.map(m=>`<span class="mchip">${esc(m)}</span>`).join("")+`</div>`:`<div class="mnone">해당 없음</div>`)+`</div>`; };
+  const uB=uniq(both),uL=uniq(lonly),uBo=uniq(bonly);
+  const html=`<div class="sec-title spec">동일 커넥터·핀맵 모델</div>`
+    +`<div class="mnote">이 모델: ${meL} · ${meB} <span class="mhint">(핀 심볼 배열 완전 일치 기준 · 자동 스크리닝이므로 원본 확인 권장)</span></div>`
+    +sec("① LVDS + 백라이트 모두 일치", both,"c-both")
+    +sec("② LVDS 핀맵만 일치", lonly,"c-spec")
+    +sec("③ 백라이트 핀맵만 일치", bonly,"c-iis");
+  const plain=["[동일 커넥터·핀맵 모델]",`이 모델: ${meL} · ${meB}`,
+    "① 둘 다 일치: "+(uB.join(", ")||"없음"),
+    "② LVDS만 일치: "+(uL.join(", ")||"없음"),
+    "③ 백라이트만 일치: "+(uBo.join(", ")||"없음")];
+  return {html, plain};
+}
 
 /* ---------- 파일명 파서 ---------- */
 function parseModel(fn){
@@ -552,6 +603,7 @@ async function summarize(it){
     if(s.kv.length){ inner += renderLines("핵심 사양 (Display Characteristics)", s.kv);
       plain.push("[핵심 사양]", ...s.kv.map(r=>` - ${r[0]}: ${r[1]}`), ""); }
     else inner += `<div class="empty">표준 사양표를 자동 인식하지 못했습니다. 아래 원문을 확인하세요.</div>`;
+    const mm=renderMatches(it); inner += mm.html; if(mm.plain.length) plain.push(...mm.plain, "");
   } else {
     const s=summarizeIis(it, ext.pages);
     if(s.groups.length){
@@ -662,6 +714,7 @@ function wireDropzone(dzId, fiId, mode){
 
 /* ---------- 시작 ---------- */
 loadIndex();
+loadConn();
 </script>
 </body>
 </html>
